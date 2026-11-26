@@ -11,7 +11,12 @@ export function getDb(): SqliteCompat {
 		return instanciaDb;
 	}
 
-	const rutaDb = process.env.DATABASE_PATH || path.resolve('data', 'hmg.sqlite');
+	const rutaPorDefecto = process.env.VERCEL
+		? path.join('/tmp', 'hmg.sqlite')
+		: path.resolve('data', 'hmg.sqlite');
+
+	const rutaDb = process.env.DATABASE_PATH || rutaPorDefecto;
+
 	if (rutaDb !== ':memory:') {
 		const directorio = path.dirname(rutaDb);
 		if (!fs.existsSync(directorio)) {
