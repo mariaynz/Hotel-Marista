@@ -1,0 +1,14 @@
+node_modules/
+build/
+.svelte-kit/
+.env
+.env.*
+!.env.example
+data/*.sqlite
+data/*.sqlite-wal
+data/*.sqlite-shm
+*.sqlite
+*.db
+coverage/
+.DS_Store
+Thumbs.db
