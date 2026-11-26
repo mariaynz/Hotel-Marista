@@ -6,7 +6,6 @@ Sistema web responsivo para la gestión de reservaciones, disponibilidad de habi
 
 - **Node.js** 22.13 o superior (usa el módulo integrado `node:sqlite`)
 - **npm** 10.x o superior
-- Herramientas básicas de compilación para `better-sqlite3`
 
 ## Instalación
 
@@ -21,7 +20,9 @@ npm install
 - `npm start`: ejecuta el servidor de producción compilado (`node build`).
 - `npm test`: ejecuta la suite de pruebas automatizadas con Vitest.
 
-> **Base de datos:** En el primer arranque del servidor (`npm run dev` o `npm start`), el sistema crea automáticamente `data/hmg.sqlite`, aplica el esquema relacional e inserta los datos iniciales (seed).
+> **Base de datos:** En el primer arranque del servidor (`npm run dev` o `npm start`), el sistema crea automáticamente `data/hmg.sqlite`, aplica el esquema relacional e inserta los datos iniciales (seed). Se puede definir `DATABASE_PATH` para elegir otra ruta del archivo.
+
+> **Despliegue en Vercel:** la demo usa `/tmp/hmg.sqlite`, así que los datos se reinician en cada arranque del servidor. Para datos persistentes usa un host con disco (Railway, Render, Fly) o cambia de base de datos.
 
 ## Credenciales de demostración
 
@@ -31,6 +32,8 @@ npm install
 - **Huésped:**
   - Correo: `ana.perez@correo.com`
   - Contraseña: `Huesped2026!`
+
+> Son credenciales de demostración. La contraseña de recepción se puede cambiar con la variable de entorno `SEED_RECEPCION_PASSWORD` antes del primer arranque.
 
 ## Estructura del proyecto
 
@@ -72,3 +75,6 @@ npm install
 2. **Autorregistro exclusivo para huéspedes:** El enlace *"¿No tienes cuenta? Regístrate"* permite crear cuentas con rol `huesped`. Las cuentas de `recepcion` se crean únicamente en el seed inicial.
 3. **Vistas secundarias de recepción:** Los enlaces *Reservas* y *Huéspedes* de la barra lateral de recepción alternan vistas dentro de `/recepcion` para respetar la navegación del wireframe sin romper la estructura de 5 pantallas.
 4. **Adiciones mínimas de operación:** Se incorporaron modales accesibles para confirmar reservas, verificar identificación y reasignar habitación en check-in, registrar consumos en check-out, crear reservas presenciales y crear/editar habitaciones.
+5. **Tarifa congelada:** cada reserva guarda la tarifa por noche del momento en que se creó. Cambiar la tarifa de la habitación después, o reasignar habitación en el check-in, no modifica el precio acordado.
+6. **Reservas presenciales:** si el correo del huésped ya tiene cuenta, la reserva se liga a ella y aparece en "Mis reservas".
+7. **Zona horaria:** "hoy" se calcula con la hora de Mérida (`America/Merida`), sin importar la zona del servidor.
