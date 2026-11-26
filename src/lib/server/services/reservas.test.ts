@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import type Database from 'better-sqlite3';
+import type { SqliteCompat } from '../db/adapter';
 import { crearDbEnMemoria } from '../db';
+import { buscarHabitacionesDisponibles } from './habitaciones.service';
 import {
 	agregarConsumoReserva,
 	crearReservaTransaccional,
@@ -11,7 +12,7 @@ import {
 import { calcularNoches, obtenerFechaHoyISO, sumarDiasISO } from '../../utils/format';
 
 describe('Lógica de negocio de Hotel Marista Gestión', () => {
-	let db: Database.Database;
+	let db: SqliteCompat;
 	const hoy = obtenerFechaHoyISO();
 
 	beforeEach(() => {
@@ -144,5 +145,45 @@ describe('Lógica de negocio de Hotel Marista Gestión', () => {
 			.prepare('SELECT estado FROM habitaciones WHERE id = ?')
 			.get(reservaLlegada.habitacion_id) as { estado: string };
 		expect(estadoHabTrasCheckOut.estado).toBe('limpieza');
+	});
+});
+
+
+describe('Correcciones de consistencia', () => {
+	it('congela la tarifa al reservar: cambiarla después no altera el total', () => {
+		const db = crearDbEnMemoria();
+		const hoy = obtenerFechaHoyISO();
+		const salida = sumarDiasISO(hoy, 2);
+		const hab = buscarHabitacionesDisponibles(db, hoy, salida, 1).find(
+			(h) => h.estado === 'disponible'
+		)!;
+
+		const res = crearReservaTransaccional(db, {
+			usuarioId: null,
+			huespedNombre: 'Prueba Tarifa',
+			huespedCorreo: '',
+			huespedTelefono: '',
+			habitacionId: hab.id,
+			fechaEntrada: hoy,
+			fechaSalida: salida,
+			huespedes: 1,
+			origen: 'presencial'
+		});
+		expect(res.ok).toBe(true);
+		if (!res.ok) return;
+
+		db.prepare('UPDATE habitaciones SET tarifa_noche = ? WHERE id = ?').run(
+			hab.tarifa_noche + 500,
+			hab.id
+		);
+
+		expect(realizarCheckIn(db, { reservaId: res.reservaId, identificacionVerificada: true }).ok).toBe(true);
+		const salidaFinal = realizarCheckOut(db, res.reservaId);
+		expect(salidaFinal.ok && salidaFinal.totalFinal).toBe(2 * hab.tarifa_noche);
+	});
+
+	it('calcula "hoy" con la zona horaria de Mérida, no con la del servidor', () => {
+		// 03:00 UTC del 26/nov = 21:00 del 25/nov en Mérida (UTC-6)
+		expect(obtenerFechaHoyISO(new Date('2026-11-26T03:00:00Z'))).toBe('2026-11-25');
 	});
 });

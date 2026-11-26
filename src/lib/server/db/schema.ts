@@ -1,6 +1,6 @@
-import type Database from 'better-sqlite3';
+import type { SqliteCompat } from './adapter';
 
-export function aplicarEsquema(db: Database.Database): void {
+export function aplicarEsquema(db: SqliteCompat): void {
 	db.exec(`
 		PRAGMA foreign_keys = ON;
 
@@ -49,7 +49,9 @@ export function aplicarEsquema(db: Database.Database): void {
 			origen TEXT NOT NULL DEFAULT 'web'
 				CHECK (origen IN ('web', 'presencial')),
 			identificacion_verificada INTEGER NOT NULL DEFAULT 0 CHECK (identificacion_verificada IN (0, 1)),
-			total REAL NOT NULL CHECK (total >= 0),
+							total REAL NOT NULL CHECK (total >= 0),
+				tarifa_noche REAL NOT NULL DEFAULT 0,
+
 			creado_en TEXT NOT NULL DEFAULT (datetime('now')),
 			FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
 			FOREIGN KEY (habitacion_id) REFERENCES habitaciones(id) ON DELETE RESTRICT,
@@ -72,6 +74,21 @@ export function aplicarEsquema(db: Database.Database): void {
 			ON reservas (usuario_id);
 
 		CREATE INDEX IF NOT EXISTS idx_sesiones_usuario
-			ON sesiones (usuario_id);
+							ON sesiones (usuario_id);
+		`);
+
+	// Migración para bases creadas antes de guardar la tarifa en la reserva
+	const columnas = db.prepare('PRAGMA table_info(reservas)').all() as Array<{ name: string }>;
+	if (!columnas.some((c) => c.name === 'tarifa_noche')) {
+		db.exec('ALTER TABLE reservas ADD COLUMN tarifa_noche REAL NOT NULL DEFAULT 0');
+	}
+}
+
+// Congela la tarifa en reservas que aún no la tienen (seed o bases viejas)
+export function rellenarTarifasReservas(db: SqliteCompat): void {
+	db.exec(`
+		UPDATE reservas
+		SET tarifa_noche = (SELECT h.tarifa_noche FROM habitaciones h WHERE h.id = reservas.habitacion_id)
+		WHERE tarifa_noche = 0
 	`);
 }

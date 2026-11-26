@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { SqliteCompat } from '../db/adapter';
 
 export type EstadoHabitacion = 'disponible' | 'ocupada' | 'limpieza' | 'mantenimiento';
 
@@ -17,7 +17,7 @@ export interface HabitacionDisponible extends Habitacion {
 	disponibles_en_categoria: number;
 }
 
-export function listarTodasHabitaciones(db: Database.Database): Habitacion[] {
+export function listarTodasHabitaciones(db: SqliteCompat): Habitacion[] {
 	return db
 		.prepare(
 			`SELECT id, numero, tipo, piso, capacidad, tarifa_noche, descripcion, estado
@@ -27,7 +27,7 @@ export function listarTodasHabitaciones(db: Database.Database): Habitacion[] {
 		.all() as Habitacion[];
 }
 
-export function obtenerHabitacionPorId(db: Database.Database, id: number): Habitacion | null {
+export function obtenerHabitacionPorId(db: SqliteCompat, id: number): Habitacion | null {
 	const fila = db
 		.prepare(
 			`SELECT id, numero, tipo, piso, capacidad, tarifa_noche, descripcion, estado
@@ -39,7 +39,7 @@ export function obtenerHabitacionPorId(db: Database.Database, id: number): Habit
 }
 
 export function buscarHabitacionesDisponibles(
-	db: Database.Database,
+	db: SqliteCompat,
 	fechaEntrada: string,
 	fechaSalida: string,
 	huespedes: number
@@ -74,7 +74,7 @@ export function buscarHabitacionesDisponibles(
 }
 
 export function cambiarEstadoHabitacion(
-	db: Database.Database,
+	db: SqliteCompat,
 	habitacionId: number,
 	nuevoEstado: EstadoHabitacion
 ): { ok: true } | { ok: false; error: string } {
@@ -103,7 +103,7 @@ export function cambiarEstadoHabitacion(
 }
 
 export function crearHabitacion(
-	db: Database.Database,
+	db: SqliteCompat,
 	datos: {
 		numero: string;
 		tipo: string;
@@ -138,7 +138,7 @@ export function crearHabitacion(
 }
 
 export function actualizarHabitacion(
-	db: Database.Database,
+	db: SqliteCompat,
 	id: number,
 	datos: {
 		tipo: string;
@@ -166,9 +166,22 @@ export function actualizarHabitacion(
 		}
 	}
 
-	db.prepare(
-		`UPDATE habitaciones
-		 SET tipo = ?, piso = ?, capacidad = ?, tarifa_noche = ?, descripcion = ?, estado = ?
+			const maxHuespedes = db
+			.prepare(
+				`SELECT COALESCE(MAX(huespedes), 0) AS maximo FROM reservas
+				 WHERE habitacion_id = ? AND estado IN ('confirmada', 'en_curso')`
+			)
+			.get(id) as { maximo: number };
+		if (datos.capacidad < maxHuespedes.maximo) {
+			return {
+				ok: false,
+				error: `Hay reservas activas de hasta ${maxHuespedes.maximo} huéspedes en esta habitación; la capacidad no puede ser menor.`
+			};
+		}
+
+		db.prepare(
+			`UPDATE habitaciones
+			 SET tipo = ?, piso = ?, capacidad = ?, tarifa_noche = ?, descripcion = ?, estado = ?
 		 WHERE id = ?`
 	).run(
 		datos.tipo.trim(),

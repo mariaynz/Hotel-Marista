@@ -17,8 +17,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		(r) => r.estado === 'confirmada' || r.estado === 'en_curso'
 	);
 	const anteriores = todas.filter(
-		(r) => r.estado === 'completada' || r.estado === 'cancelada'
-	);
+				(r) => r.estado === 'completada' || r.estado === 'cancelada'
+	).sort((a, b) => b.fecha_entrada.localeCompare(a.fecha_entrada));
 
 	return {
 		proximas,

@@ -18,6 +18,10 @@ export function esFechaISOValida(fecha: string): boolean {
 	);
 }
 
+export function esCorreoValido(correo: string): boolean {
+	return REGEX_CORREO.test(correo.trim());
+}
+
 export function validarLogin(datos: { correo: string; contrasena: string }): ErroresValidacion {
 	const errores: ErroresValidacion = {};
 	if (!datos.correo.trim()) {

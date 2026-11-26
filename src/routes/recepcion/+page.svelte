@@ -186,7 +186,7 @@
 									{#if res.estado === 'confirmada'}
 										<EtiquetaEstado tipo="llegada" />
 									{:else if res.estado === 'en_curso'}
-										<EtiquetaEstado tipo="salida" />
+										<EtiquetaEstado tipo={res.fecha_salida <= data.hoy ? 'salida' : 'en_curso'} />
 									{:else}
 										<EtiquetaEstado tipo={res.estado} />
 									{/if}
@@ -230,7 +230,7 @@
 							{#if res.estado === 'confirmada'}
 								<EtiquetaEstado tipo="llegada" />
 							{:else if res.estado === 'en_curso'}
-								<EtiquetaEstado tipo="salida" />
+								<EtiquetaEstado tipo={res.fecha_salida <= data.hoy ? 'salida' : 'en_curso'} />
 							{:else}
 								<EtiquetaEstado tipo={res.estado} />
 							{/if}

@@ -80,7 +80,13 @@
 							<EtiquetaEstado tipo={reserva.estado} />
 
 							{#if reserva.estado === 'confirmada' && reserva.fecha_entrada >= data.hoy}
-								<form method="POST" action="?/cancelar" use:enhance>
+								<form
+									method="POST"
+									action="?/cancelar"
+									use:enhance={({ cancel }) => {
+										if (!confirm('¿Seguro que quieres cancelar esta reserva?')) cancel();
+									}}
+								>
 									<input type="hidden" name="reserva_id" value={reserva.id} />
 									<Boton tipo="submit" variante="secundario">
 										Cancelar reserva

@@ -12,7 +12,7 @@ import {
 	realizarCheckIn,
 	realizarCheckOut
 } from '$lib/server/services/reservas.service';
-import { validarRangoBusqueda } from '$lib/server/validators';
+import { esCorreoValido, validarRangoBusqueda } from '$lib/server/validators';
 import { obtenerFechaHoyISO } from '$lib/utils/format';
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -140,16 +140,29 @@ export const actions: Actions = {
 			return fail(400, { errorOperacion: 'El nombre del huésped es obligatorio.' });
 		}
 
-		const hoy = obtenerFechaHoyISO();
-		const errores = validarRangoBusqueda(fechaEntrada, fechaSalida, huespedes, hoy);
-		if (Object.keys(errores).length > 0) {
-			const primerError = Object.values(errores)[0];
+					if (huespedCorreo.trim() && !esCorreoValido(huespedCorreo)) {
+				return fail(400, { errorOperacion: 'El correo del huésped no tiene un formato válido.' });
+			}
+			if (huespedTelefono.trim() && huespedTelefono.trim().length < 8) {
+				return fail(400, { errorOperacion: 'El teléfono debe tener al menos 8 dígitos.' });
+			}
+
+			const hoy = obtenerFechaHoyISO();
+			const errores = validarRangoBusqueda(fechaEntrada, fechaSalida, huespedes, hoy);
+			if (Object.keys(errores).length > 0) {
+				const primerError = Object.values(errores)[0];
 			return fail(400, { errorOperacion: primerError });
 		}
 
-		const db = getDb();
-		const resultado = crearReservaTransaccional(db, {
-			usuarioId: null,
+					const db = getDb();
+			// Si el huésped ya tiene cuenta, la reserva queda ligada a ella (la verá en "Mis reservas")
+			const cuenta = huespedCorreo.trim()
+				? (db
+						.prepare(`SELECT id FROM usuarios WHERE LOWER(correo) = LOWER(?) AND rol = 'huesped'`)
+						.get(huespedCorreo.trim()) as { id: number } | undefined)
+				: undefined;
+			const resultado = crearReservaTransaccional(db, {
+				usuarioId: cuenta?.id ?? null,
 			huespedNombre,
 			huespedCorreo,
 			huespedTelefono,

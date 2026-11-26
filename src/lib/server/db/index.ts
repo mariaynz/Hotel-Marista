@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { SqliteCompat } from './adapter';
-import { aplicarEsquema } from './schema';
+import { aplicarEsquema, rellenarTarifasReservas } from './schema';
 import { ejecutarSeedSiVacio } from './seed';
 
 let instanciaDb: SqliteCompat | null = null;
@@ -11,12 +11,9 @@ export function getDb(): SqliteCompat {
 		return instanciaDb;
 	}
 
-	const rutaPorDefecto = process.env.VERCEL
-		? path.join('/tmp', 'hmg.sqlite')
-		: path.resolve('data', 'hmg.sqlite');
-
+	// En Vercel solo se puede escribir en /tmp (demo: los datos no persisten entre arranques)
+	const rutaPorDefecto = process.env.VERCEL ? '/tmp/hmg.sqlite' : path.resolve('data', 'hmg.sqlite');
 	const rutaDb = process.env.DATABASE_PATH || rutaPorDefecto;
-
 	if (rutaDb !== ':memory:') {
 		const directorio = path.dirname(rutaDb);
 		if (!fs.existsSync(directorio)) {
@@ -29,8 +26,9 @@ export function getDb(): SqliteCompat {
 	db.pragma('busy_timeout = 5000');
 	db.pragma('foreign_keys = ON');
 
-	aplicarEsquema(db as never);
-	ejecutarSeedSiVacio(db as never);
+	aplicarEsquema(db);
+	ejecutarSeedSiVacio(db);
+	rellenarTarifasReservas(db);
 
 	instanciaDb = db;
 	return db;
@@ -39,7 +37,8 @@ export function getDb(): SqliteCompat {
 export function crearDbEnMemoria(): SqliteCompat {
 	const db = new SqliteCompat(':memory:');
 	db.pragma('foreign_keys = ON');
-	aplicarEsquema(db as never);
-	ejecutarSeedSiVacio(db as never);
+	aplicarEsquema(db);
+	ejecutarSeedSiVacio(db);
+	rellenarTarifasReservas(db);
 	return db;
 }

@@ -1,8 +1,8 @@
-import type Database from 'better-sqlite3';
+import type { SqliteCompat } from './adapter';
 import { cifrarContrasena } from './password';
 import { obtenerFechaHoyISO, sumarDiasISO } from '../../utils/format';
 
-export function ejecutarSeedSiVacio(db: Database.Database): void {
+export function ejecutarSeedSiVacio(db: SqliteCompat): void {
 	const conteoUsuarios = db.prepare('SELECT COUNT(*) as total FROM usuarios').get() as {
 		total: number;
 	};
@@ -26,7 +26,7 @@ export function ejecutarSeedSiVacio(db: Database.Database): void {
 			VALUES (?, ?, ?, ?, ?)
 		`);
 
-		const hashRecepcion = cifrarContrasena('Recepcion2026!');
+		const hashRecepcion = cifrarContrasena(process.env.SEED_RECEPCION_PASSWORD ?? 'Recepcion2026!');
 		const hashHuesped = cifrarContrasena('Huesped2026!');
 
 		stmtUsuario.run(

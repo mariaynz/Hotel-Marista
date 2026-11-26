@@ -1,7 +1,12 @@
-import { DatabaseSync } from 'node:sqlite';
+import { createRequire } from 'node:module';
+import type { DatabaseSync as DatabaseSyncClase } from 'node:sqlite';
+
+// Se carga con require porque Vitest elimina el prefijo "node:" al importar node:sqlite
+const require = createRequire(import.meta.url);
+const { DatabaseSync } = require('node:sqlite') as { DatabaseSync: typeof DatabaseSyncClase };
 
 export class SqliteCompat {
-	private raw: DatabaseSync;
+	private raw: InstanceType<typeof DatabaseSyncClase>;
 
 	constructor(ruta: string) {
 		this.raw = new DatabaseSync(ruta);
@@ -18,8 +23,8 @@ export class SqliteCompat {
 	prepare(sql: string) {
 		const stmt = this.raw.prepare(sql);
 		return {
-			get: (...params: unknown[]) => stmt.get(...(params as never[])),
-			all: (...params: unknown[]) => stmt.all(...(params as never[])),
+			get: (...params: unknown[]): unknown => stmt.get(...(params as never[])),
+			all: (...params: unknown[]): unknown[] => stmt.all(...(params as never[])),
 			run: (...params: unknown[]) => {
 				const res = stmt.run(...(params as never[]));
 				return {

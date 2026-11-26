@@ -4,7 +4,7 @@ Sistema web responsivo para la gestión de reservaciones, disponibilidad de habi
 
 ## Requisitos previos
 
-- **Node.js** 20.x o superior
+- **Node.js** 22.13 o superior (usa el módulo integrado `node:sqlite`)
 - **npm** 10.x o superior
 - Herramientas básicas de compilación para `better-sqlite3`
 

@@ -6,11 +6,16 @@ export function formatearMoneda(monto: number): string {
 	}).format(monto);
 }
 
+// El hotel está en Mérida: "hoy" debe ser su fecha local sin importar la zona del servidor (UTC en Vercel)
+export const ZONA_HORARIA_HOTEL = 'America/Merida';
+
 export function obtenerFechaHoyISO(referencia: Date = new Date()): string {
-	const year = referencia.getFullYear();
-	const month = String(referencia.getMonth() + 1).padStart(2, '0');
-	const day = String(referencia.getDate()).padStart(2, '0');
-	return `${year}-${month}-${day}`;
+	return new Intl.DateTimeFormat('en-CA', {
+		timeZone: ZONA_HORARIA_HOTEL,
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	}).format(referencia);
 }
 
 export function sumarDiasISO(fechaISO: string, dias: number): string {

@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { SqliteCompat } from '../db/adapter';
 import { randomBytes } from 'node:crypto';
 import { calcularNoches, obtenerFechaHoyISO } from '../../utils/format';
 
@@ -50,7 +50,7 @@ export interface MetricasDia {
 	};
 }
 
-export function generarCodigoReserva(db: Database.Database, anio: number = new Date().getFullYear()): string {
+export function generarCodigoReserva(db: SqliteCompat, anio: number = new Date().getFullYear()): string {
 	const alfabeto = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 	for (let intento = 0; intento < 20; intento++) {
 		const bytes = randomBytes(6);
@@ -68,7 +68,7 @@ export function generarCodigoReserva(db: Database.Database, anio: number = new D
 }
 
 export function existeEmpalmeReserva(
-	db: Database.Database,
+	db: SqliteCompat,
 	habitacionId: number,
 	fechaEntrada: string,
 	fechaSalida: string,
@@ -97,7 +97,7 @@ export function existeEmpalmeReserva(
 }
 
 export function crearReservaTransaccional(
-	db: Database.Database,
+	db: SqliteCompat,
 	datos: {
 		usuarioId: number | null;
 		huespedNombre: string;
@@ -173,9 +173,9 @@ export function crearReservaTransaccional(
 				`INSERT INTO reservas (
 					codigo, usuario_id, huesped_nombre, huesped_correo, huesped_telefono,
 					habitacion_id, fecha_entrada, fecha_salida, huespedes, estado, origen,
-					identificacion_verificada, total
-				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmada', ?, 0, ?)`
+					identificacion_verificada, total, tarifa_noche
+					)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmada', ?, 0, ?, ?)`
 			)
 			.run(
 				codigo,
@@ -187,9 +187,10 @@ export function crearReservaTransaccional(
 				datos.fechaEntrada,
 				datos.fechaSalida,
 				datos.huespedes,
-				datos.origen,
-				total
-			);
+									datos.origen,
+					total,
+					hab.tarifa_noche
+				);
 
 		return {
 			ok: true as const,
@@ -203,7 +204,7 @@ export function crearReservaTransaccional(
 }
 
 export function listarReservasPorUsuario(
-	db: Database.Database,
+	db: SqliteCompat,
 	usuarioId: number
 ): ReservaDetalle[] {
 	const filas = db
@@ -229,7 +230,7 @@ export function listarReservasPorUsuario(
 }
 
 export function cancelarReservaHuesped(
-	db: Database.Database,
+	db: SqliteCompat,
 	reservaId: number,
 	usuarioId: number,
 	hoyISO: string = obtenerFechaHoyISO()
@@ -257,7 +258,7 @@ export function cancelarReservaHuesped(
 }
 
 export function obtenerMetricasDelDia(
-	db: Database.Database,
+	db: SqliteCompat,
 	hoyISO: string = obtenerFechaHoyISO()
 ): MetricasDia {
 	const habitaciones = db
@@ -274,7 +275,8 @@ export function obtenerMetricasDelDia(
 		conteoEstados[h.estado]++;
 	}
 
-	const totalHabitaciones = habitaciones.length || 1;
+	// La ocupación se calcula sobre habitaciones operativas (sin mantenimiento)
+	const totalHabitaciones = Math.max(1, habitaciones.length - conteoEstados.mantenimiento);
 	const porcentajeOcupacion = Math.round((conteoEstados.ocupada / totalHabitaciones) * 100);
 
 	const llegadas = db
@@ -287,7 +289,7 @@ export function obtenerMetricasDelDia(
 	const salidas = db
 		.prepare(
 			`SELECT COUNT(*) AS total FROM reservas
-			 WHERE fecha_salida = ? AND estado = 'en_curso'`
+			 WHERE fecha_salida <= ? AND estado = 'en_curso'`
 		)
 		.get(hoyISO) as { total: number };
 
@@ -306,7 +308,7 @@ export function obtenerMetricasDelDia(
 }
 
 export function listarMovimientosDelDia(
-	db: Database.Database,
+	db: SqliteCompat,
 	hoyISO: string = obtenerFechaHoyISO(),
 	filtroBusqueda: string = ''
 ): ReservaDetalle[] {
@@ -346,7 +348,7 @@ export function listarMovimientosDelDia(
 }
 
 export function listarTodasReservasRecepcion(
-	db: Database.Database,
+	db: SqliteCompat,
 	filtroBusqueda: string = ''
 ): ReservaDetalle[] {
 	const termino = `%${filtroBusqueda.trim().replace(/^#/, '')}%`;
@@ -375,14 +377,14 @@ export function listarTodasReservasRecepcion(
 	}));
 }
 
-export function listarConsumosPorReserva(db: Database.Database, reservaId: number): Consumo[] {
+export function listarConsumosPorReserva(db: SqliteCompat, reservaId: number): Consumo[] {
 	return db
 		.prepare('SELECT id, reserva_id, concepto, monto, fecha FROM consumos WHERE reserva_id = ? ORDER BY id ASC')
 		.all(reservaId) as Consumo[];
 }
 
 export function agregarConsumoReserva(
-	db: Database.Database,
+	db: SqliteCompat,
 	reservaId: number,
 	concepto: string,
 	monto: number
@@ -411,7 +413,7 @@ export function agregarConsumoReserva(
 }
 
 export function realizarCheckIn(
-	db: Database.Database,
+	db: SqliteCompat,
 	datos: {
 		reservaId: number;
 		identificacionVerificada: boolean;
@@ -503,17 +505,15 @@ export function realizarCheckIn(
 			};
 		}
 
-		const noches = calcularNoches(reserva.fecha_entrada, reserva.fecha_salida);
-		const nuevoTotalHospedaje = noches * habitacion.tarifa_noche;
+		
 
 		db.prepare(
 			`UPDATE reservas
 			 SET habitacion_id = ?,
 			     estado = 'en_curso',
-			     identificacion_verificada = 1,
-			     total = ?
-			 WHERE id = ?`
-		).run(habitacionObjetivoId, nuevoTotalHospedaje, reserva.id);
+			     			     identificacion_verificada = 1
+				 WHERE id = ?`
+			).run(habitacionObjetivoId, reserva.id);
 
 		db.prepare(`UPDATE habitaciones SET estado = 'ocupada' WHERE id = ?`).run(
 			habitacionObjetivoId
@@ -526,16 +526,15 @@ export function realizarCheckIn(
 }
 
 export function realizarCheckOut(
-	db: Database.Database,
+	db: SqliteCompat,
 	reservaId: number
 ): { ok: true; totalFinal: number } | { ok: false; error: string } {
 	const ejecutarTx = db.transaction(() => {
 		const reserva = db
 			.prepare(
-				`SELECT r.id, r.habitacion_id, r.fecha_entrada, r.fecha_salida, r.estado, h.tarifa_noche
-				 FROM reservas r
-				 INNER JOIN habitaciones h ON h.id = r.habitacion_id
-				 WHERE r.id = ?`
+				`SELECT id, habitacion_id, fecha_entrada, fecha_salida, estado, tarifa_noche
+					 FROM reservas
+					 WHERE id = ?`
 			)
 			.get(reservaId) as
 			| {

@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { SqliteCompat } from '../db/adapter';
 import { randomBytes } from 'node:crypto';
 import type { UsuarioSesion } from '../../../app';
 import { cifrarContrasena, verificarContrasena } from '../db/password';
@@ -6,7 +6,7 @@ import { cifrarContrasena, verificarContrasena } from '../db/password';
 const DURACION_SESION_HORAS = 24 * 7;
 
 export function autenticarUsuario(
-	db: Database.Database,
+	db: SqliteCompat,
 	correo: string,
 	contrasena: string
 ): UsuarioSesion | null {
@@ -40,7 +40,7 @@ export function autenticarUsuario(
 }
 
 export function registrarHuesped(
-	db: Database.Database,
+	db: SqliteCompat,
 	datos: { nombre: string; correo: string; telefono: string; contrasena: string }
 ): { ok: true; usuario: UsuarioSesion } | { ok: false; error: string } {
 	const existente = db
@@ -71,7 +71,7 @@ export function registrarHuesped(
 	};
 }
 
-export function crearSesion(db: Database.Database, usuarioId: number): { id: string; expiraEn: Date } {
+export function crearSesion(db: SqliteCompat, usuarioId: number): { id: string; expiraEn: Date } {
 	const id = randomBytes(32).toString('hex');
 	const expiraEn = new Date(Date.now() + DURACION_SESION_HORAS * 60 * 60 * 1000);
 
@@ -85,7 +85,7 @@ export function crearSesion(db: Database.Database, usuarioId: number): { id: str
 }
 
 export function obtenerUsuarioPorSesion(
-	db: Database.Database,
+	db: SqliteCompat,
 	sesionId: string | undefined
 ): UsuarioSesion | null {
 	if (!sesionId) return null;
@@ -119,7 +119,7 @@ export function obtenerUsuarioPorSesion(
 	};
 }
 
-export function cerrarSesion(db: Database.Database, sesionId: string | undefined): void {
+export function cerrarSesion(db: SqliteCompat, sesionId: string | undefined): void {
 	if (!sesionId) return;
 	db.prepare('DELETE FROM sesiones WHERE id = ?').run(sesionId);
 }

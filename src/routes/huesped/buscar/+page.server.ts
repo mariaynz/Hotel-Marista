@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { getDb } from '$lib/server/db';
 import { buscarHabitacionesDisponibles } from '$lib/server/services/habitaciones.service';
 import { crearReservaTransaccional } from '$lib/server/services/reservas.service';
-import { validarRangoBusqueda } from '$lib/server/validators';
+import { validarRangoBusqueda, type ErroresValidacion } from '$lib/server/validators';
 import { obtenerFechaHoyISO, sumarDiasISO } from '$lib/utils/format';
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -42,7 +42,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		fechaSalida: salidaParam,
 		huespedes: huespedesParam,
 		habitaciones,
-		errores: {},
+		errores: {} as ErroresValidacion,
 		mensajeSinDisponibilidad:
 			motivoRedireccion === 'cambiar_fechas'
 				? 'La habitación dejó de estar disponible en el último momento. Por favor selecciona otra habitación o prueba cambiar fechas.'
