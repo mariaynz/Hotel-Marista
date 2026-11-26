@@ -3,8 +3,16 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	plugins: [sveltekit()],
+	ssr: {
+		external: ['node:sqlite']
+	},
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}'],
-		environment: 'node'
+		environment: 'node',
+		server: {
+			deps: {
+				external: ['node:sqlite']
+			}
+		}
 	}
 });
